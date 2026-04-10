@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const { prompt } = await request.json();
-    const apiKey = process.env.VITE_NVIDIA_IMAGE_KEY;
+    const apiKey = process.env.NVIDIA_IMAGE_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });

@@ -12,10 +12,14 @@ interface Message {
 
 export default function Home() {
   const [mode, setMode] = useState<'chat' | 'image'>('chat');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [imageMessages, setImageMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const messages = mode === 'chat' ? chatMessages : imageMessages;
+  const setMessages = mode === 'chat' ? setChatMessages : setImageMessages;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,7 +27,7 @@ export default function Home() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [chatMessages, imageMessages, mode]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -33,8 +37,8 @@ export default function Home() {
     setIsLoading(true);
 
     if (mode === 'chat') {
-      const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
-      setMessages(newMessages);
+      const newMessages: Message[] = [...chatMessages, { role: 'user', content: userMessage }];
+      setChatMessages(newMessages);
 
       try {
         const response = await fetch('/api/chat', {
@@ -44,15 +48,20 @@ export default function Home() {
         });
 
         const data = await response.json();
-        if (data.choices?.[0]?.message) {
-          setMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
+        
+        if (data.error) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error.message || data.error}` }]);
+        } else if (data.choices?.[0]?.message) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
         }
       } catch (error) {
         console.error('Chat error:', error);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Could not connect to the chat service.' }]);
       }
     } else {
       // Image mode
-      setMessages(prev => [...prev, { role: 'user', content: `Generating image for: ${userMessage}` }]);
+      const newMessages: Message[] = [...imageMessages, { role: 'user', content: `Generating: ${userMessage}` }];
+      setImageMessages(newMessages);
       
       try {
         const response = await fetch('/api/image', {
@@ -62,21 +71,21 @@ export default function Home() {
         });
 
         const data = await response.json();
-        // Handle NVIDIA specific response (often artifacts[0].base64)
         const imageBase64 = data.artifacts?.[0]?.base64 || data.image || data.url;
         
         if (imageBase64) {
-          setMessages(prev => [...prev, { 
+          setImageMessages(prev => [...prev, { 
             role: 'assistant', 
-            content: 'Here is your generated image:', 
+            content: 'Success! Image generated.', 
             type: 'image', 
             imageData: imageBase64.startsWith('http') ? imageBase64 : `data:image/png;base64,${imageBase64}`
           }]);
         } else {
-          setMessages(prev => [...prev, { role: 'assistant', content: 'Failed to generate image. Please try again.' }]);
+          setImageMessages(prev => [...prev, { role: 'assistant', content: data.error || 'Failed to generate image.' }]);
         }
       } catch (error) {
         console.error('Image error:', error);
+        setImageMessages(prev => [...prev, { role: 'assistant', content: 'Connection error during image generation.' }]);
       }
     }
 
