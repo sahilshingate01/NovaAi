@@ -162,12 +162,20 @@ async function sendChat(text) {
         // Build messages with system prompt
         const apiMessages = [SYSTEM_PROMPT, ...messages];
 
+        // On production (Netlify), we prefer the server-side Environment Variable.
+        // We only send the header if the user has provided a custom key in the settings.
+        const headers = { "Content-Type": "application/json" };
+        const storedKey = localStorage.getItem('openrouter_api_key');
+        if (storedKey) {
+            headers["Authorization"] = `Bearer ${storedKey}`;
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // Local dev fallback
+            headers["Authorization"] = `Bearer ${OPENROUTER_API_KEY}`;
+        }
+
         const response = await fetch(`${API_BASE}/chat`, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json"
-            },
+            headers: headers,
             body: JSON.stringify({
                 model: CHAT_MODEL,
                 messages: apiMessages,
@@ -213,13 +221,20 @@ async function generateImage(prompt) {
     showTyping();
 
     try {
+        const headers = { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        };
+        const storedKey = localStorage.getItem('nvidia_image_key');
+        if (storedKey) {
+            headers["Authorization"] = `Bearer ${storedKey}`;
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            headers["Authorization"] = `Bearer ${NVIDIA_IMAGE_KEY}`;
+        }
+
         const response = await fetch(`${API_BASE}/image`, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${NVIDIA_IMAGE_KEY}`,
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
+            headers: headers,
             body: JSON.stringify({
                 prompt: prompt,
                 cfg_scale: 5,
