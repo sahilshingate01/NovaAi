@@ -129,3 +129,59 @@ body {
     border-color: #00FFB2;
 }
 
+/* Chat content formatting */
+.chat-content p {
+    margin: 0;
+}
+
+.chat-content p + p {
+    margin-top: 8px;
+}
+
+.chat-content strong {
+    color: #fff;
+    font-weight: 600;
+}
+
+.chat-content em {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-content h1,
+.chat-content h2,
+.chat-content h3 {
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+.chat-content h1:first-child,
+.chat-content h2:first-child,
+.chat-content h3:first-child {
+    margin-top: 0;
+}
+
+.chat-content ul,
+.chat-content ol {
+    margin: 8px 0;
+    padding-left: 8px;
+}
+
+.chat-content li {
+    margin-bottom: 2px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.chat-content pre {
+    margin: 8px 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-content code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.chat-content a {
+    color: #00FFB2;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}

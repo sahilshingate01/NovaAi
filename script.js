@@ -1,10 +1,22 @@
 // CONFIG
-let NVIDIA_CHAT_KEY = localStorage.getItem('nvidia_chat_key') || "";
-let NVIDIA_IMAGE_KEY = localStorage.getItem('nvidia_image_key') || "";
-const CHAT_MODEL = "nvidia/nemotron-3-super-120b-a12b";
+let NVIDIA_CHAT_KEY = localStorage.getItem('nvidia_chat_key') || "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";
+let NVIDIA_IMAGE_KEY = localStorage.getItem('nvidia_image_key') || "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";
+let CORS_PROXY = localStorage.getItem('cors_proxy') || "https://proxy.cors.sh/";
+const CHAT_MODEL = "nvidia/llama-3.3-nemotron-super-49b-v1";
 const IMAGE_MODEL = "stabilityai/stable-diffusion-3-medium";
 let messages = [];
 let currentMode = "chat";
+
+// System prompt to keep responses concise and chatbot-like
+const SYSTEM_PROMPT = {
+    role: "system",
+    content: "You are Nova AI. Speak like a real person in a casual chat. BE CONCISE. Never use long lists or menus. Never offer 'options to proceed'. Just answer the user directly and naturally. Keep most responses under 3 sentences unless asked for detail."
+};
+
+// API Base Detection (Local Proxy vs Netlify Function)
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? "http://localhost:3456/api" 
+    : "/.netlify/functions/api";
 
 // DOM Elements
 const chatMessages = document.getElementById('chatMessages');
@@ -13,6 +25,7 @@ const sendBtn = document.getElementById('sendBtn');
 const chatModeBtn = document.getElementById('chatModeBtn');
 const imageModeBtn = document.getElementById('imageModeBtn');
 const typingIndicator = document.getElementById('typingIndicator');
+const newChatBtn = document.querySelector('button.mt-6.w-full'); // New Chat button in sidebar
 
 // Settings Elements
 const settingsModal = document.getElementById('settingsModal');
@@ -21,6 +34,7 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const nvidiaChatKeyInput = document.getElementById('nvidiaChatKeyInput');
 const nvidiaImageKeyInput = document.getElementById('nvidiaImageKeyInput');
+const corsProxyInput = document.getElementById('corsProxyInput');
 
 // Mode Switcher
 function switchMode(mode) {
@@ -30,44 +44,83 @@ function switchMode(mode) {
     const activeClass = "bg-[#00FFB2]/20 border border-[#00FFB2]/50 text-[#00FFB2] text-sm rounded-full px-4 py-1.5";
     const inactiveClass = "bg-white/8 border border-white/15 text-white/50 text-sm rounded-full px-4 py-1.5";
 
-    if (mode === "chat") {
-        chatModeBtn.className = activeClass;
-        imageModeBtn.className = inactiveClass;
-        userInput.placeholder = "Message Nova AI...";
-    } else {
-        chatModeBtn.className = inactiveClass;
-        imageModeBtn.className = activeClass;
-        userInput.placeholder = "Describe an image to generate...";
+    if (chatModeBtn && imageModeBtn) {
+        if (mode === "chat") {
+            chatModeBtn.className = activeClass;
+            imageModeBtn.className = inactiveClass;
+            userInput.placeholder = "Message Nova AI...";
+        } else {
+            chatModeBtn.className = inactiveClass;
+            imageModeBtn.className = activeClass;
+            userInput.placeholder = "Describe an image to generate...";
+        }
     }
+}
+
+// Simple markdown to HTML converter
+function renderMarkdown(text) {
+    let html = text
+        // Escape HTML first
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        // Code blocks (```)
+        .replace(/```([\s\S]*?)```/g, '<pre class="bg-white/5 rounded-lg p-3 my-2 text-xs overflow-x-auto"><code>$1</code></pre>')
+        // Inline code (`)
+        .replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-[#00FFB2] text-xs">$1</code>')
+        // Bold (**text**)
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+        // Italic (*text*)
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        // Headers (### h3, ## h2, # h1)
+        .replace(/^### (.+)$/gm, '<h3 class="text-white font-semibold text-sm mt-3 mb-1">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 class="text-white font-semibold text-base mt-3 mb-1">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 class="text-white font-bold text-lg mt-3 mb-1">$1</h1>')
+        // Unordered lists
+        .replace(/^[\-\*] (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+        // Ordered lists  
+        .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+        // Line breaks (double newline = paragraph break)
+        .replace(/\n\n/g, '</p><p class="mt-2">')
+        // Single newlines
+        .replace(/\n/g, '<br>');
+    
+    // Wrap consecutive <li> items
+    html = html.replace(/(<li[^>]*>.*?<\/li>(?:<br>)?)+/g, (match) => {
+        return '<ul class="my-2 space-y-1">' + match.replace(/<br>/g, '') + '</ul>';
+    });
+    
+    return '<p>' + html + '</p>';
 }
 
 // Append Message to UI
 function appendMessage(role, content, type = "text") {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `max-w-[75%] mb-4 message-fade-in ${role === 'user' ? 'self-end' : 'self-start flex'}`;
+    messageDiv.className = `max-w-[65%] mb-4 message-fade-in ${role === 'user' ? 'self-end' : 'self-start flex'}`;
     
     let innerHTML = '';
     
     if (role === 'bot') {
         innerHTML += `
-            <div class="bg-[#00FFB2]/20 border border-[#00FFB2]/40 w-7 h-7 rounded-full flex items-center justify-center text-xs mr-2 shrink-0">🤖</div>
-            <div class="glass px-4 py-3 rounded-2xl rounded-tl-sm text-white text-sm">
+            <div class="bg-[#00FFB2]/20 border border-[#00FFB2]/40 w-7 h-7 rounded-full flex items-center justify-center text-xs mr-2 shrink-0 mt-1">🤖</div>
+            <div class="glass px-4 py-3 rounded-2xl rounded-tl-sm text-white text-sm leading-relaxed">
         `;
     } else {
-        messageDiv.className = 'max-w-[70%] mb-4 message-fade-in self-end';
+        messageDiv.className = 'max-w-[55%] mb-4 message-fade-in self-end';
         innerHTML += `<div class="bg-[#00FFB2]/15 border border-[#00FFB2]/25 text-white text-sm rounded-2xl rounded-tr-sm px-4 py-3">`;
     }
 
     if (type === "text") {
-        if (content.reasoning) {
+        const textContent = typeof content === 'object' ? content.text : content;
+        const reasoning = typeof content === 'object' ? content.reasoning : null;
+
+        if (reasoning) {
             innerHTML += `
                 <div class="mb-2 p-3 bg-white/5 border-l-2 border-[#00FFB2]/30 rounded-r-lg">
                     <div class="text-[10px] uppercase tracking-widest text-[#00FFB2]/60 mb-1 font-bold">Thought Process</div>
-                    <div class="text-xs text-white/50 italic leading-relaxed">${content.reasoning}</div>
+                    <div class="text-xs text-white/50 italic leading-relaxed">${renderMarkdown(reasoning)}</div>
                 </div>
             `;
         }
-        innerHTML += `<div>${content.text || content}</div>`;
+        innerHTML += `<div class="chat-content">${renderMarkdown(textContent)}</div>`;
     } else if (type === "image") {
         innerHTML += `<img src="${content}" alt="Generated AI" class="max-w-[300px] w-full rounded-xl mt-2 border border-white/10 shadow-lg">`;
     }
@@ -106,12 +159,10 @@ async function sendChat(text) {
     showTyping();
 
     try {
-        // Using a CORS proxy for development. WARNING: This exposes your API key to the proxy.
-        // For production, use a backend server.
-        const proxyUrl = "https://corsproxy.io/?";
-        const apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-        
-        const response = await fetch(proxyUrl + encodeURIComponent(apiUrl), {
+        // Build messages with system prompt
+        const apiMessages = [SYSTEM_PROMPT, ...messages];
+
+        const response = await fetch(`${API_BASE}/chat`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${NVIDIA_CHAT_KEY}`,
@@ -119,25 +170,23 @@ async function sendChat(text) {
             },
             body: JSON.stringify({
                 model: CHAT_MODEL,
-                messages: messages,
-                temperature: 1,
-                top_p: 0.95,
-                max_tokens: 4096,
-                extra_body: {
-                    chat_template_kwargs: { enable_thinking: false }
-                }
+                messages: apiMessages,
+                temperature: 0.7,
+                top_p: 0.9,
+                max_tokens: 512,
+                stream: false
             })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`API Error: ${response.status} - ${errorText}`);
+            throw new Error(`API Error: ${response.status} - ${errorText.substring(0, 300)}`);
         }
 
         const data = await response.json();
         const choice = data.choices[0];
         const replyText = choice.message.content;
-        const reasoningText = choice.message.reasoning_content || null;
+        const reasoningText = choice.message.reasoning || choice.message.reasoning_content || null;
 
         messages.push({ role: "assistant", content: replyText });
         hideTyping();
@@ -146,7 +195,7 @@ async function sendChat(text) {
     } catch (error) {
         console.error("Chat Error:", error);
         hideTyping();
-        appendMessage("bot", `⚠️ Error: ${error.message}`);
+        appendMessage("bot", `⚠️ Error: ${error.message}. Make sure the proxy server is running: node proxy-server.js`);
     }
 }
 
@@ -159,11 +208,7 @@ async function generateImage(prompt) {
     showTyping();
 
     try {
-        // Using a CORS proxy for development. WARNING: This exposes your API key to the proxy.
-        const proxyUrl = "https://corsproxy.io/?";
-        const apiUrl = "https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-3-medium";
-
-        const response = await fetch(proxyUrl + encodeURIComponent(apiUrl), {
+        const response = await fetch(`${API_BASE}/image`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${NVIDIA_IMAGE_KEY}`,
@@ -172,37 +217,45 @@ async function generateImage(prompt) {
             },
             body: JSON.stringify({
                 prompt: prompt,
+                cfg_scale: 5,
+                aspect_ratio: "1:1",
+                seed: 0,
+                steps: 50,
+                negative_prompt: "",
                 mode: "text-to-image",
-                aspect_ratio: "1:1"
+                model: "sd3"
             })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`API Error: ${response.status} - ${errorText}`);
+            console.error("Image API error response:", errorText);
+            throw new Error(`API Error ${response.status}: ${errorText.substring(0, 300)}`);
         }
 
         const data = await response.json();
-        // Stability SD3 NIM returns base64 inside an artifacts array
-        if (!data.artifacts || !data.artifacts[0] || !data.artifacts[0].base64) {
-             // Fallback for some NIM versions that might use 'image' or different structure
-             if (data.image) {
-                 const url = `data:image/png;base64,${data.image}`;
-                 hideTyping();
-                 appendMessage("bot", url, "image");
-                 return;
-             }
-            throw new Error("Invalid response format from SD3 API");
+        console.log("Image API response keys:", Object.keys(data));
+
+        let imageUrl = null;
+        if (data.image) {
+            imageUrl = `data:image/jpeg;base64,${data.image}`;
+        } else if (data.artifacts && data.artifacts[0] && data.artifacts[0].base64) {
+            imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`;
+        } else if (data.data && data.data[0] && data.data[0].b64_json) {
+            imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
         }
-        const b64Data = data.artifacts[0].base64;
-        const url = `data:image/png;base64,${b64Data}`;
-        
+
+        if (!imageUrl) {
+            console.error("Unexpected response format:", JSON.stringify(data).substring(0, 500));
+            throw new Error("Unexpected response format from Image API. Check console for details.");
+        }
+
         hideTyping();
-        appendMessage("bot", url, "image");
+        appendMessage("bot", imageUrl, "image");
     } catch (error) {
         console.error("Image Error:", error);
         hideTyping();
-        appendMessage("bot", `⚠️ Image generation failed: ${error.message}`);
+        appendMessage("bot", `⚠️ Image generation failed: ${error.message}. Make sure the proxy server is running: node proxy-server.js`);
     }
 }
 
@@ -222,45 +275,68 @@ async function sendMessage() {
     }
 }
 
+// New Chat Function
+function startNewChat() {
+    messages = [];
+    chatMessages.innerHTML = '';
+    appendMessage("bot", "👋 Session cleared! How can I help you now?");
+}
+
 // Event Listeners
-sendBtn.onclick = sendMessage;
+if (sendBtn) sendBtn.onclick = sendMessage;
+if (newChatBtn) newChatBtn.onclick = startNewChat;
 
-userInput.onkeydown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-};
+if (userInput) {
+    userInput.onkeydown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    };
 
-userInput.oninput = () => {
-    userInput.style.height = "auto";
-    userInput.style.height = Math.min(userInput.scrollHeight, 120) + "px";
-};
+    userInput.oninput = () => {
+        userInput.style.height = "auto";
+        userInput.style.height = Math.min(userInput.scrollHeight, 120) + "px";
+    };
+}
 
-chatModeBtn.onclick = () => switchMode("chat");
-imageModeBtn.onclick = () => switchMode("image");
+if (chatModeBtn) chatModeBtn.onclick = () => switchMode("chat");
+if (imageModeBtn) imageModeBtn.onclick = () => switchMode("image");
 
 // Settings Logic
-settingsBtn.onclick = () => {
-    nvidiaChatKeyInput.value = NVIDIA_CHAT_KEY;
-    nvidiaImageKeyInput.value = NVIDIA_IMAGE_KEY;
-    settingsModal.classList.add('active');
-};
+if (settingsBtn) {
+    settingsBtn.onclick = () => {
+        nvidiaChatKeyInput.value = NVIDIA_CHAT_KEY;
+        nvidiaImageKeyInput.value = NVIDIA_IMAGE_KEY;
+        corsProxyInput.value = CORS_PROXY;
+        settingsModal.classList.add('active');
+    };
+}
 
-closeSettingsBtn.onclick = () => {
-    settingsModal.classList.remove('active');
-};
+if (closeSettingsBtn) {
+    closeSettingsBtn.onclick = () => {
+        settingsModal.classList.remove('active');
+    };
+}
 
-saveSettingsBtn.onclick = () => {
-    NVIDIA_CHAT_KEY = nvidiaChatKeyInput.value.trim();
-    NVIDIA_IMAGE_KEY = nvidiaImageKeyInput.value.trim();
-    
-    localStorage.setItem('nvidia_chat_key', NVIDIA_CHAT_KEY);
-    localStorage.setItem('nvidia_image_key', NVIDIA_IMAGE_KEY);
-    
-    settingsModal.classList.remove('active');
-    appendMessage("bot", "✅ Settings saved successfully!");
-};
+if (saveSettingsBtn) {
+    saveSettingsBtn.onclick = () => {
+        NVIDIA_CHAT_KEY = nvidiaChatKeyInput.value.trim();
+        NVIDIA_IMAGE_KEY = nvidiaImageKeyInput.value.trim();
+        CORS_PROXY = corsProxyInput.value.trim();
+        
+        if (CORS_PROXY && !CORS_PROXY.endsWith('/')) {
+            // Some proxies need the URL directly appended; shcors generally handles it but ends with / is safer
+        }
+
+        localStorage.setItem('nvidia_chat_key', NVIDIA_CHAT_KEY);
+        localStorage.setItem('nvidia_image_key', NVIDIA_IMAGE_KEY);
+        localStorage.setItem('cors_proxy', CORS_PROXY);
+        
+        settingsModal.classList.remove('active');
+        appendMessage("bot", "✅ Settings saved successfully!");
+    };
+}
 
 // Close modal on click outside
 window.onclick = (e) => {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nova AI - Dark Glassmorphism Chat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="flex flex-row">
@@ -41,7 +41,7 @@
         <header class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
             <div class="text-white font-semibold">Nova AI</div>
             <div class="bg-white/10 border border-white/20 text-white/60 text-xs px-3 py-1 rounded-full">
-                Model: gpt-3.5-turbo
+                Model: Nemotron Super 49B
             </div>
         </header>
 
@@ -96,6 +96,12 @@
                 <div>
                     <label class="block text-white/50 text-xs uppercase tracking-wider mb-2">Nvidia Image API Key</label>
                     <input type="password" id="nvidiaImageKeyInput" placeholder="nvapi-..." class="settings-input">
+                </div>
+
+                <div>
+                    <label class="block text-white/50 text-xs uppercase tracking-wider mb-2">CORS Proxy URL</label>
+                    <input type="text" id="corsProxyInput" placeholder="https://proxy.cors.sh/" class="settings-input">
+                    <p class="mt-1 text-[9px] text-white/30 italic">Usually ends with / or ?url=</p>
                 </div>
 
                 <div class="pt-4 flex gap-3">
