@@ -32,14 +32,31 @@ exports.handler = async (event) => {
         return { statusCode: 404, headers, body: 'Not Found' };
     }
 
-    const authHeader = event.headers.authorization || event.headers.Authorization || 
-                      (path === 'chat' ? (process.env.OPENROUTER_API_KEY ? `Bearer ${process.env.OPENROUTER_API_KEY}` : null) : (process.env.NVIDIA_IMAGE_KEY ? `Bearer ${process.env.NVIDIA_IMAGE_KEY}` : null));
+    // Get key from headers or fallback to environment variables
+    let clientKey = event.headers.authorization || event.headers.Authorization;
+    
+    // If clientKey is empty or just "Bearer ", use the server-side fallback
+    if (!clientKey || clientKey.trim() === 'Bearer' || clientKey.trim() === 'Bearer undefined' || clientKey.trim() === 'Bearer null') {
+        const envChatKey = process.env.OPENROUTER_API_KEY;
+        const envImageKey = process.env.VITE_NVIDIA_IMAGE_KEY || process.env.NVIDIA_IMAGE_KEY;
+        
+        if (path === 'chat' && envChatKey) {
+            clientKey = `Bearer ${envChatKey}`;
+        } else if (path === 'image' && envImageKey) {
+            clientKey = `Bearer ${envImageKey}`;
+        } else {
+            clientKey = null;
+        }
+    }
 
-    if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
+    const authHeader = clientKey;
+
+    if (!authHeader) {
+        console.error(`[ERROR] No API key found for path: ${path}`);
         return { 
             statusCode: 401, 
             headers, 
-            body: JSON.stringify({ error: `Missing API Key for ${path}. Please set it in Netlify Environment Variables or app Settings.` }) 
+            body: JSON.stringify({ error: `Missing API Key for ${path}. Please set it in Netlify Environment Variables.` }) 
         };
     }
 
