@@ -197,7 +197,10 @@ async function sendChat(text) {
     } catch (error) {
         console.error("Chat Error:", error);
         hideTyping();
-        appendMessage("bot", `⚠️ Error: ${error.message}. Make sure the proxy server is running: node proxy-server.js`);
+        const apiHelp = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? "Make sure the proxy server is running: node proxy-server.js"
+            : "Check your Netlify Environment Variables.";
+        appendMessage("bot", `⚠️ Error: ${error.message}. ${apiHelp}`);
     }
 }
 
@@ -257,7 +260,10 @@ async function generateImage(prompt) {
     } catch (error) {
         console.error("Image Error:", error);
         hideTyping();
-        appendMessage("bot", `⚠️ Image generation failed: ${error.message}. Make sure the proxy server is running: node proxy-server.js`);
+        const apiHelp = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? "Make sure the proxy server is running: node proxy-server.js"
+            : "Check your Netlify Environment Variables.";
+        appendMessage("bot", `⚠️ Image generation failed: ${error.message}. ${apiHelp}`);
     }
 }
 

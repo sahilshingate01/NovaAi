@@ -33,7 +33,18 @@ exports.handler = async (event) => {
     }
 
     const authHeader = event.headers.authorization || event.headers.Authorization || 
-                      (path === 'chat' ? `Bearer ${process.env.OPENROUTER_API_KEY}` : `Bearer ${process.env.NVIDIA_IMAGE_KEY}`);
+                      (path === 'chat' ? (process.env.OPENROUTER_API_KEY ? `Bearer ${process.env.OPENROUTER_API_KEY}` : null) : (process.env.NVIDIA_IMAGE_KEY ? `Bearer ${process.env.NVIDIA_IMAGE_KEY}` : null));
+
+    if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
+        return { 
+            statusCode: 401, 
+            headers, 
+            body: JSON.stringify({ error: `Missing API Key for ${path}. Please set it in Netlify Environment Variables or app Settings.` }) 
+        };
+    }
+
+    // Use actual origin or host as referer
+    const siteUrl = event.headers.origin || `https://${event.headers.host}`;
 
     try {
         const body = event.body;
@@ -48,7 +59,7 @@ exports.handler = async (event) => {
                     'Authorization': authHeader,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'HTTP-Referer': 'https://nova-ai.netlify.app',
+                    'HTTP-Referer': siteUrl,
                     'X-Title': 'Nova AI'
                 }
             };
