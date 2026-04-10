@@ -1,13 +1,24 @@
 {
   "name": "nova-ai",
-  "version": "1.0.0",
-  "description": "Nova AI - Dark Glassmorphism Chat",
-  "main": "proxy-server.js",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "node proxy-server.js",
-    "build": "echo 'No build step required'",
-    "preview": "npm run start"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "next": "16.2.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.3",
+    "typescript": "^5"
+  }
 }
