@@ -35,15 +35,16 @@ exports.handler = async (event) => {
     // Get key from headers or fallback to environment variables
     let clientKey = event.headers.authorization || event.headers.Authorization;
     
-    // If clientKey is empty or just "Bearer ", use the server-side fallback
+    // Fallback logic
     if (!clientKey || clientKey.trim() === 'Bearer' || clientKey.trim() === 'Bearer undefined' || clientKey.trim() === 'Bearer null') {
-        const envChatKey = process.env.OPENROUTER_API_KEY;
-        const envImageKey = process.env.VITE_NVIDIA_IMAGE_KEY || process.env.NVIDIA_IMAGE_KEY;
+        // Try ENV first, then hardcoded fallback as last resort
+        const envKey = process.env.OPENROUTER_API_KEY || "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";
+        const envImageKey = process.env.VITE_NVIDIA_IMAGE_KEY || process.env.NVIDIA_IMAGE_KEY || "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";
         
-        if (path === 'chat' && envChatKey) {
-            clientKey = `Bearer ${envChatKey}`;
+        if (path === 'chat' && envKey) {
+            clientKey = `Bearer ${envKey.trim()}`;
         } else if (path === 'image' && envImageKey) {
-            clientKey = `Bearer ${envImageKey}`;
+            clientKey = `Bearer ${envImageKey.trim()}`;
         } else {
             clientKey = null;
         }
@@ -52,11 +53,10 @@ exports.handler = async (event) => {
     const authHeader = clientKey;
 
     if (!authHeader) {
-        console.error(`[ERROR] No API key found for path: ${path}`);
         return { 
             statusCode: 401, 
             headers, 
-            body: JSON.stringify({ error: `Missing API Key for ${path}. Please set it in Netlify Environment Variables.` }) 
+            body: JSON.stringify({ error: `Missing API Key for ${path}.` }) 
         };
     }
 
@@ -75,9 +75,7 @@ exports.handler = async (event) => {
                 headers: {
                     'Authorization': authHeader,
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'HTTP-Referer': siteUrl,
-                    'X-Title': 'Nova AI'
+                    'Accept': 'application/json'
                 }
             };
 
