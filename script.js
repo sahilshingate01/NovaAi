@@ -1,8 +1,8 @@
 // CONFIG
-let NVIDIA_CHAT_KEY = localStorage.getItem('nvidia_chat_key') || "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";
+let OPENROUTER_API_KEY = localStorage.getItem('openrouter_api_key') || "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";
 let NVIDIA_IMAGE_KEY = localStorage.getItem('nvidia_image_key') || "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";
 let CORS_PROXY = localStorage.getItem('cors_proxy') || "https://proxy.cors.sh/";
-const CHAT_MODEL = "nvidia/llama-3.3-nemotron-super-49b-v1";
+const CHAT_MODEL = "google/gemini-2.0-flash-001";
 const IMAGE_MODEL = "stabilityai/stable-diffusion-3-medium";
 let messages = [];
 let currentMode = "chat";
@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = {
 // API Base Detection (Local Proxy vs Netlify Function)
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? "http://localhost:3456/api" 
-    : "/.netlify/functions/api";
+    : "/api";
 
 // DOM Elements
 const chatMessages = document.getElementById('chatMessages');
@@ -32,7 +32,7 @@ const settingsModal = document.getElementById('settingsModal');
 const settingsBtn = document.getElementById('settingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-const nvidiaChatKeyInput = document.getElementById('nvidiaChatKeyInput');
+const openrouterKeyInput = document.getElementById('nvidiaChatKeyInput');
 const nvidiaImageKeyInput = document.getElementById('nvidiaImageKeyInput');
 const corsProxyInput = document.getElementById('corsProxyInput');
 
@@ -150,8 +150,8 @@ function hideTyping() {
 
 // APIs
 async function sendChat(text) {
-    if (!NVIDIA_CHAT_KEY) {
-        appendMessage("bot", "⚠️ Nvidia Chat API Key is missing. Please add it in Settings (⚙️).");
+    if (!OPENROUTER_API_KEY) {
+        appendMessage("bot", "⚠️ OpenRouter API Key is missing. Please add it in Settings (⚙️).");
         return;
     }
 
@@ -165,7 +165,7 @@ async function sendChat(text) {
         const response = await fetch(`${API_BASE}/chat`, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${NVIDIA_CHAT_KEY}`,
+                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -186,6 +186,8 @@ async function sendChat(text) {
         const data = await response.json();
         const choice = data.choices[0];
         const replyText = choice.message.content;
+        
+        // Support reasoning content if provided by OpenRouter (e.g. R1 models)
         const reasoningText = choice.message.reasoning || choice.message.reasoning_content || null;
 
         messages.push({ role: "assistant", content: replyText });
@@ -306,7 +308,7 @@ if (imageModeBtn) imageModeBtn.onclick = () => switchMode("image");
 // Settings Logic
 if (settingsBtn) {
     settingsBtn.onclick = () => {
-        nvidiaChatKeyInput.value = NVIDIA_CHAT_KEY;
+        openrouterKeyInput.value = OPENROUTER_API_KEY;
         nvidiaImageKeyInput.value = NVIDIA_IMAGE_KEY;
         corsProxyInput.value = CORS_PROXY;
         settingsModal.classList.add('active');
@@ -321,7 +323,7 @@ if (closeSettingsBtn) {
 
 if (saveSettingsBtn) {
     saveSettingsBtn.onclick = () => {
-        NVIDIA_CHAT_KEY = nvidiaChatKeyInput.value.trim();
+        OPENROUTER_API_KEY = openrouterKeyInput.value.trim();
         NVIDIA_IMAGE_KEY = nvidiaImageKeyInput.value.trim();
         CORS_PROXY = corsProxyInput.value.trim();
         
@@ -329,7 +331,7 @@ if (saveSettingsBtn) {
             // Some proxies need the URL directly appended; shcors generally handles it but ends with / is safer
         }
 
-        localStorage.setItem('nvidia_chat_key', NVIDIA_CHAT_KEY);
+        localStorage.setItem('openrouter_api_key', OPENROUTER_API_KEY);
         localStorage.setItem('nvidia_image_key', NVIDIA_IMAGE_KEY);
         localStorage.setItem('cors_proxy', CORS_PROXY);
         

@@ -24,14 +24,16 @@ exports.handler = async (event) => {
     let targetUrl;
 
     if (path === 'chat') {
-        targetUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
+        // Now using OpenRouter for Chat
+        targetUrl = 'https://openrouter.ai/api/v1/chat/completions';
     } else if (path === 'image') {
         targetUrl = 'https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-3-medium';
     } else {
         return { statusCode: 404, headers, body: 'Not Found' };
     }
 
-    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const authHeader = event.headers.authorization || event.headers.Authorization || 
+                      (path === 'chat' ? `Bearer ${process.env.OPENROUTER_API_KEY}` : `Bearer ${process.env.NVIDIA_IMAGE_KEY}`);
 
     try {
         const body = event.body;
@@ -45,7 +47,9 @@ exports.handler = async (event) => {
                 headers: {
                     'Authorization': authHeader,
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'HTTP-Referer': 'https://nova-ai.netlify.app',
+                    'X-Title': 'Nova AI'
                 }
             };
 

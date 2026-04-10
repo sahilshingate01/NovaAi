@@ -1,0 +1,13 @@
+{
+  "name": "nova-ai",
+  "version": "1.0.0",
+  "description": "Nova AI - Dark Glassmorphism Chat",
+  "main": "proxy-server.js",
+  "scripts": {
+    "start": "node proxy-server.js",
+    "build": "echo 'No build step required'",
+    "preview": "npm run start"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
