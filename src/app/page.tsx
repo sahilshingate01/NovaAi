@@ -50,7 +50,8 @@ export default function Home() {
         const data = await response.json();
         
         if (data.error) {
-          setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error.message || data.error}` }]);
+          const errorMsg = typeof data.error === 'object' ? (data.error.message || JSON.stringify(data.error)) : data.error;
+          setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
         } else if (data.choices?.[0]?.message) {
           setChatMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
         }
